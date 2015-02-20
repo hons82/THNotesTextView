@@ -18,8 +18,7 @@
 @synthesize verticalLineColor = _verticalLineColor;
 @synthesize dottedLines = _dottedLines;
 
-+ (void)initialize
-{
++ (void)initialize {
     if (self == [THNotesTextView class])
     {
         id appearance = [self appearance];
@@ -30,24 +29,80 @@
     }
 }
 
-- (UIColor *)horizontalLineColor
-{
+#pragma mark - Setup/Teardown
+
+- (void)setup {
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(textDidChangeNotification:) name:UITextViewTextDidChangeNotification object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(keyboardDidChangeFrame:) name:UIKeyboardDidChangeFrameNotification object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(keyboardWillHide:) name:UIKeyboardWillHideNotification object:nil];
+}
+
+-(id)initWithFrame:(CGRect)frame {
+    self = [super initWithFrame:frame];
+    if (self) {
+        [self setup];
+    }
+    return self;
+}
+
+-(void)awakeFromNib {
+    [self setup];
+}
+
+-(void)dealloc {
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
+#if !__has_feature(objc_arc)
+    [super dealloc];
+#endif
+}
+
+- (void)setContentSize:(CGSize)contentSize {
+    contentSize = (CGSize) {
+        .width = contentSize.width - self.margins.left - self.margins.right,
+        .height = contentSize.height
+    };
+    NSLog(@"width: %f, height %f",contentSize.width,contentSize.height);
+    [super setContentSize:contentSize];
+}
+
+- (void)setMargins:(UIEdgeInsets)margins {
+    _margins = margins;
+    self.contentInset = (UIEdgeInsets) {
+        .top = self.margins.top,
+        .left = self.margins.left,
+        .bottom = self.margins.bottom,
+        .right = self.margins.right - self.margins.left
+    };
+    self.textContainerInset = (UIEdgeInsets) {
+        .top = self.margins.top,
+        .left = 0,
+        .bottom = self.margins.bottom,
+        .right = self.margins.right + self.margins.left
+    };
+    
+    [self setContentSize:self.contentSize];
+}
+
+- (void)scrollToCaretAnimated:(BOOL)animated {
+    CGRect rect = [self caretRectForPosition:self.selectedTextRange.end];
+    rect.size.height += self.textContainerInset.bottom;
+    [self scrollRectToVisible:rect animated:animated];
+}
+
+- (UIColor *)horizontalLineColor {
     if (!_horizontalLineColor) _horizontalLineColor = DEFAULT_HORIZONTAL_COLOR;
     return _horizontalLineColor;
 }
 
-- (UIColor *)verticalLineColor
-{
+- (UIColor *)verticalLineColor {
     if (!_verticalLineColor) _verticalLineColor = DEFAULT_VERTICAL_COLOR;
     return _verticalLineColor;
 }
 
-- (void)drawRect:(CGRect)rect
-{
+- (void)drawRect:(CGRect)rect {
     CGContextRef context = UIGraphicsGetCurrentContext();
     CGFloat lineSpacing = 1.01f;
-    if (self.horizontalLineColor)
-    {
+    if (self.horizontalLineColor) {
         CGContextSetLineWidth(context, 1.0f);
         if ([self isDottedLines]) {
             CGFloat dash[] = {1.0, 1.0};
@@ -74,7 +129,7 @@
             // Rounding the point to the nearest pixel.
             // Greatly reduces drawing time.
             CGFloat roundedLinePointY = roundf(linePointY * screenScale) / screenScale;
-            NSLog(@"linePointYRounded %f (%f)",roundedLinePointY, linePointY);
+            //NSLog(@"linePointYRounded %f (%f)",roundedLinePointY, linePointY);
             CGContextMoveToPoint(context, boundsX, roundedLinePointY);
             CGContextAddLineToPoint(context, boundsWidth, roundedLinePointY);
         }
@@ -82,8 +137,7 @@
         CGContextStrokePath(context);
     }
     
-    if (self.verticalLineColor)
-    {
+    if (self.verticalLineColor) {
         if ([self isDottedLines]) {
             CGFloat dash[] = {0.5, 1.5};
             CGContextSetLineDash(context, 0.0, dash, 2);
@@ -104,38 +158,29 @@
         CGContextAddLineToPoint(context, -1.0f + self.contentSize.width, self.contentOffset.y + self.bounds.size.height);
         CGContextClosePath(context);
         CGContextStrokePath(context);
-        
-        NSLog(@"contentSize.width %f",self.contentSize.width);
     }
 }
 
-- (void)setContentSize:(CGSize)contentSize
-{
-    contentSize = (CGSize) {
-        .width = contentSize.width - self.margins.left - self.margins.right,
-        .height = MAX(contentSize.height, self.bounds.size.height - self.margins.top)
-    };
-    NSLog(@"width: %f, height %f",contentSize.width,contentSize.height);
-    [super setContentSize:contentSize];
+#pragma mark - Notifications
+
+- (void)textDidChangeNotification:(NSNotification*)notification {
+    [self scrollToCaretAnimated:NO];
 }
 
-- (void)setMargins:(UIEdgeInsets)margins
-{
-    _margins = margins;
-    self.contentInset = (UIEdgeInsets) {
-        .top = self.margins.top,
-        .left = self.margins.left,
-        .bottom = self.margins.bottom,
-        .right = self.margins.right - self.margins.left
-    };
-    self.textContainerInset = (UIEdgeInsets) {
-        .top = self.margins.top,
-        .left = 0,
-        .bottom = self.margins.bottom,
-        .right = self.margins.right + self.margins.left
-    };
+- (void)keyboardWillHide:(NSNotification*)notification {
+    [self setMargins:DEFAULT_MARGINS];
+}
+
+- (void)keyboardDidChangeFrame:(NSNotification*)notification {
+    NSDictionary* keyboardInfo = [notification userInfo];
+    CGRect keyboardFrameBeginRect =  [[keyboardInfo valueForKey:UIKeyboardFrameBeginUserInfoKey]CGRectValue];
     
-    [self setContentSize:self.contentSize];
+    UIEdgeInsets tmp = DEFAULT_MARGINS;
+    tmp.bottom = [[UIDevice currentDevice] orientation] == UIDeviceOrientationLandscapeLeft || [[UIDevice currentDevice] orientation] == UIDeviceOrientationLandscapeRight ?
+    keyboardFrameBeginRect.size.width : keyboardFrameBeginRect.size.height;
+    tmp.right = tmp.right - tmp.left;
+    [self setContentInset:tmp];
+    [self scrollToCaretAnimated:NO];
 }
 
 @end

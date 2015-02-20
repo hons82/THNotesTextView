@@ -1,6 +1,10 @@
 THNotesTextView
 ===
 
+[![Pod Version](http://img.shields.io/cocoapods/v/THNotesTextView.svg?style=flat)](http://cocoadocs.org/docsets/THNotesTextView/)
+[![Pod Platform](http://img.shields.io/cocoapods/p/THNotesTextView.svg?style=flat)](http://cocoadocs.org/docsets/THNotesTextView/)
+[![Pod License](http://img.shields.io/cocoapods/l/THNotesTextView.svg?style=flat)](http://opensource.org/licenses/MIT)
+
 This control is an an extension to the standard UITextview make it look like a notebook
 
 # Screenshots
@@ -16,7 +20,7 @@ Install with [CocoaPods](http://cocoapods.org) by adding the following to your P
 
 ``` ruby
 platform :ios, '7.0'
-pod 'THNotesTextView', '~> 0.0.1'
+pod 'THNotesTextView', '~> 1.0.0'
 ```
 
 **Note**: We follow http://semver.org for versioning the public API.
